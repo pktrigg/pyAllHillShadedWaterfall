@@ -160,9 +160,9 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
 
     meanDepth = np.average(waterfall)
     print ("Mean Depth %.2f" % meanDepth)
-    npGrid = np.array(waterfall) * shadeScale * -1.0   
     # npGrid = np.array(waterfall) * (200 / meanDepth)   
     if gray:
+        npGrid = np.array(waterfall) * shadeScale * -1.0   
         #Create hillshade a little brighter
         hs = sr.calcHillshade(npGrid, 1, 45, 30)
         hillShadeImage = Image.fromarray(hs).convert('RGBA')
@@ -174,6 +174,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
         print ("Saved to: ", os.path.splitext(filename)[0]+'.png')
     else:
         #Create hillshade a little darker as we are blending it
+        npGrid = np.array(waterfall) * shadeScale   
         hs = sr.calcHillshade(npGrid, 1, 45, 5)
         hillShadeImage = Image.fromarray(hs).convert('RGBA')
         # calculate color height map
