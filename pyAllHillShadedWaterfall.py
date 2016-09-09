@@ -37,8 +37,8 @@ def main():
     for filename in glob(args.inputFile):
         # navigation = loadNavigation(filename)
         # print (navigation)
-        xResolution,yResolution = computeXYResolution(filename)
-        createWaterfall(filename, colors, float(args.shadeScale), xResolution, yResolution, args.rotate, args.gray)
+        xResolution,yResolution, beamCount = computeXYResolution(filename)
+        createWaterfall(filename, colors, beamCount, float(args.shadeScale), xResolution, yResolution, args.rotate, args.gray)
 
 def loadPal(paletteFileName):
     '''this will load and return a .pal file so we can apply colors to depths.  It will strip off the headers from the file and return a list of n*RGB values'''
@@ -77,6 +77,7 @@ def computeXYResolution(fileName):
     recCount = 0
     acrossMeans = np.array([])
     alongIntervals = np.array([])
+    beamCount = 0
     distanceTravelled = 0.0
     while r.moreData():
         TypeOfDatagram, datagram = r.readDatagram()
@@ -94,7 +95,8 @@ def computeXYResolution(fileName):
         if (TypeOfDatagram == 'X') or (TypeOfDatagram == 'D'):
             datagram.read()
             acrossMeans = np.append(acrossMeans, np.average(np.diff(np.asarray(datagram.AcrossTrackDistance))))
-            recCount = recCount + 1 
+            recCount = recCount + 1
+            beamCount = max(beamCount, len(datagram.Depth)) 
             
         #limit to a few records so it is fast
         if recCount == 100:
@@ -103,9 +105,9 @@ def computeXYResolution(fileName):
     xResolution = np.average(acrossMeans)
     yResolution = distanceTravelled / recCount
     print ("xRes %.2f yRes %.2f" % (xResolution, yResolution))
-    return xResolution, yResolution
+    return xResolution, yResolution, beamCount
 
-def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1, rotate=False, gray=False):
+def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yResolution=1, rotate=False, gray=False):
     print ("Processing file: ", filename)
 
     r = pyall.ALLReader(filename)
@@ -116,6 +118,8 @@ def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1
     isoStretchFactor = math.ceil(xResolution/yResolution)
     while r.moreData():
         TypeOfDatagram, datagram = r.readDatagram()
+        if (TypeOfDatagram == 0):
+            continue
         if (TypeOfDatagram == 'X') or (TypeOfDatagram == 'D'):
             datagram.read()
             # nadirBeam = int(datagram.NBeams / 2)
@@ -127,7 +131,8 @@ def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1
             # we need to stretch the data to make it isometric, so lets use numpy interp routing to do that for Us
             xp = np.arange(len(datagram.Depth)) #the x distance for the beams of a ping.  we could possibly use teh real values here instead todo
             fp = np.array(datagram.Depth) #the depth list as a numpy array
-            x = np.linspace(0, len(datagram.Depth), len(datagram.Depth) * isoStretchFactor) #the required samples
+            x = np.linspace(0, len(datagram.Depth), beamCount * isoStretchFactor) #the required samples
+            # x = np.linspace(0, len(datagram.Depth), len(datagram.Depth) * isoStretchFactor) #the required samples
             newDepths = np.interp(x, xp, fp)
             waterfall.insert(0, np.asarray(newDepths))            
 
@@ -136,7 +141,9 @@ def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1
             # for repeat in range (isoStretchFactor):
             #     waterfall.insert(0, np.asarray(newDepths))            
         recCount += 1
-
+        # print (recCount, r.currentRecordDateTime())
+        # if recCount==1862:
+        #     print (recCount, r.currentRecordDateTime())
         if r.currentRecordDateTime().timestamp() % 30 == 0:
             # break
             percentageRead = (recCount / totalrecords) 
@@ -154,7 +161,7 @@ def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1
         #Create hillshade a little brighter
         hs = sr.calcHillshade(npGrid, 1, 45, 30)
         hillShadeImage = Image.fromarray(hs).convert('RGBA')
-        hillshadeFilename = os.path.splitext(filename)[0]+'_HillShadedWaterfall.png'
+        hillshadeFilename = os.path.splitext(filename)[0]+'.png'
         hillShadeImage.save(hillshadeFilename)
     else:
         #Create hillshade a little darker as we are blending it
@@ -174,7 +181,7 @@ def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1
         if rotate:
             blendedImage = blendedImage.rotate(-90, expand=True)
         # now save the file
-        blendedFilename = os.path.splitext(filename)[0]+'_HillShadedWaterfall.png'
+        blendedFilename = os.path.splitext(filename)[0]+'.png'
         blendedImage.save(blendedFilename, "PNG")
 
     r.rewind()

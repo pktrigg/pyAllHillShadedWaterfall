@@ -11,6 +11,7 @@ pyAllHillShadedWaterfall
 
 Done
 ====
+* improved D reader as we were missing 1 field (maxBeams)
 * add option for -gray scale instead of color depth
 * add option to rotate the image.  While we call this a waterfall, screens are usually wider than tall, so rotating through 90 makes a lot of sense
 * add support for shade scale factor
@@ -31,9 +32,10 @@ Done
 * test with EM302 units.
 * add support for dual heads
 * we need to automate a decent shadescale factor.  Here are some numbers to estimate that
-Depth GoodScale
-20   2.0    20*2
-2830 0.2    2830*0.2=566
+    Depth GoodScale
+    20   2.0    20*2
+    35   1.5    Em2000 AUV
+    2830 0.2    2830*0.2=566
 
 
 Example Reader
