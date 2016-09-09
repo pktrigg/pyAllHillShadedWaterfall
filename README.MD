@@ -1,3 +1,4 @@
+![Alt text](/relative/path/to/sample.png?raw=true "Optional Title")
 pyAllHillShadedWaterfall
 =====
 * created:       August 2016
@@ -10,6 +11,7 @@ pyAllHillShadedWaterfall
 
 Done
 ====
+* add option for -gray scale instead of color depth
 * add option to rotate the image.  While we call this a waterfall, screens are usually wider than tall, so rotating through 90 makes a lot of sense
 * add support for shade scale factor
 * add a better palette than the off-the-shelf 'blues' from matplotlib so we see familiar colors
@@ -28,6 +30,11 @@ Done
 * add timestamps and ticks burned into the image
 * test with EM302 units.
 * add support for dual heads
+* we need to automate a decent shadescale factor.  Here are some numbers to estimate that
+Depth GoodScale
+20   2.0    20*2
+2830 0.2    2830*0.2=566
+
 
 Example Reader
 -------
