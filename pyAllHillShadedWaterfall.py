@@ -19,7 +19,7 @@ import csv
 
 def main():
     parser = argparse.ArgumentParser(description='Read Kongsberg ALL file and create a hill shaded color waterfall image.')
-    parser.add_argument('-i', dest='inputFile', action='store', help='-i <ALLfilename> : input ALL filename to image')
+    parser.add_argument('-i', dest='inputFile', action='store', help='-i <ALLfilename> : input ALL filename to image. It can also be a wildcard, e.g. *.all')
     parser.add_argument('-s', dest='shadeScale', default = 1.0, action='store', help='-s <value> : Shade scale factor. a smaller number (0.1) provides less shade that a larger number (10) Range is anything.  [Default - 1.0]')
     parser.add_argument('-r', action='store_true', default=False, dest='rotate', help='-r : Rotate the resulting waterfall so the image reads from left to right instead of bottom to top.  [Default is bottom to top]')
     parser.add_argument('-gray', action='store_true', default=False, dest='gray', help='-gray : Apply a gray scale depth palette to the image instead of a color depth.  [Default is False]')
@@ -33,11 +33,14 @@ def main():
     args = parser.parse_args()
 
     print ("processing with settings: ", args)
-    print ("Files to Process:", glob(args.inputFile))
+    # print ("Files to Process:", glob(args.inputFile))
     for filename in glob(args.inputFile):
         # navigation = loadNavigation(filename)
         # print (navigation)
         xResolution,yResolution, beamCount = computeXYResolution(filename)
+        if beamCount == 0:
+            print ("No data to process, skipping empty file")
+            continue
         createWaterfall(filename, colors, beamCount, float(args.shadeScale), xResolution, yResolution, args.rotate, args.gray)
 
 def loadPal(paletteFileName):
@@ -102,9 +105,10 @@ def computeXYResolution(fileName):
         if recCount == 100:
             break
     r.close()
+    if recCount == 0:
+        return 0,0,0 
     xResolution = np.average(acrossMeans)
     yResolution = distanceTravelled / recCount
-    print ("xRes %.2f yRes %.2f" % (xResolution, yResolution))
     return xResolution, yResolution, beamCount
 
 def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yResolution=1, rotate=False, gray=False):
@@ -116,6 +120,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
     recCount = 0
     waterfall = []
     isoStretchFactor = math.ceil(xResolution/yResolution)
+    print ("xRes %.2f yRes %.2f AcrossStretch %.2f" % (xResolution, yResolution, isoStretchFactor))
     while r.moreData():
         TypeOfDatagram, datagram = r.readDatagram()
         if (TypeOfDatagram == 0):
@@ -155,14 +160,18 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
 
     meanDepth = np.average(waterfall)
     print ("Mean Depth %.2f" % meanDepth)
-    npGrid = np.array(waterfall) * shadeScale   
+    npGrid = np.array(waterfall) * shadeScale * -1.0   
     # npGrid = np.array(waterfall) * (200 / meanDepth)   
     if gray:
         #Create hillshade a little brighter
         hs = sr.calcHillshade(npGrid, 1, 45, 30)
         hillShadeImage = Image.fromarray(hs).convert('RGBA')
+        #rotate the image if the user requests this.  It is a little better for viewing in a browser
+        if rotate:
+            hillShadeImage = hillShadeImage.rotate(-90, expand=True)
         hillshadeFilename = os.path.splitext(filename)[0]+'.png'
         hillShadeImage.save(hillshadeFilename)
+        print ("Saved to: ", os.path.splitext(filename)[0]+'.png')
     else:
         #Create hillshade a little darker as we are blending it
         hs = sr.calcHillshade(npGrid, 1, 45, 5)
@@ -183,6 +192,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
         # now save the file
         blendedFilename = os.path.splitext(filename)[0]+'.png'
         blendedImage.save(blendedFilename, "PNG")
+        print ("Saved to: ", os.path.splitext(filename)[0]+'.png')
 
     r.rewind()
     print("Complete converting ALL file to waterfall :-)")

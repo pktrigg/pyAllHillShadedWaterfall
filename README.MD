@@ -1,4 +1,4 @@
-![Alt text](sample.png?raw=true "Optional Title")
+![Alt text](sample.png?raw=true "Color Shaded Waterfall direct from .all file.")
 pyAllHillShadedWaterfall
 =====
 * created:       August 2016
@@ -11,6 +11,7 @@ pyAllHillShadedWaterfall
 
 Done
 ====
+* handle empty all files elegantly
 * improved D reader as we were missing 1 field (maxBeams)
 * add option for -gray scale instead of color depth
 * add option to rotate the image.  While we call this a waterfall, screens are usually wider than tall, so rotating through 90 makes a lot of sense
@@ -25,6 +26,7 @@ Done
 
 2Do
 ===
+* sort out crash with very small .all files.
 * test to see if we need to smooth the data a little for visual niceness
 * add support for iso stretching by computing the mean pixel spacing in along and across track axes.  We can then stretch the waterfall to approximate isometry
 * check rotated image so we know the survey direction is L-->Read
@@ -48,13 +50,23 @@ python pyallhillshadedwaterfall.py -i *.all
 help
 ----
 
-C:\development\python\pyAllWaterfall>python pyAllHillShadedWaterfall.py
-usage: pyAllHillShadedWaterfall.py [-h] [-i INPUTFILE]
+
+C:\projects\GP1533\VSM03>python c:\development\python\pyAllhillshadedWaterfall\pyAllHillShadedWaterfall.py
+usage: pyAllHillShadedWaterfall.py [-h] [-i INPUTFILE] [-s SHADESCALE] [-r]
+                                   [-gray]
 
 Read Kongsberg ALL file and create a hill shaded color waterfall image.
 
 optional arguments:
-  -h, --help    show this help message and exit
-  -i INPUTFILE  -i <ALLfilename> : input ALL filename to image
+  -h, --help     show this help message and exit
+  -i INPUTFILE   -i <ALLfilename> : input ALL filename to image
+  -s SHADESCALE  -s <value> : Shade scale factor. a smaller number (0.1)
+                 provides less shade that a larger number (10) Range is
+                 anything. [Default - 1.0]
+  -r             -r : Rotate the resulting waterfall so the image reads from
+                 left to right instead of bottom to top. [Default is bottom to
+                 top]
+  -gray          -gray : Apply a gray scale depth palette to the image instead
+                 of a color depth. [Default is False]
 
-```
+
