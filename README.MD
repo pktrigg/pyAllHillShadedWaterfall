@@ -1,4 +1,4 @@
-![Alt text](/relative/path/to/sample.png?raw=true "Optional Title")
+![Alt text](/sample.png?raw=true "Optional Title")
 pyAllHillShadedWaterfall
 =====
 * created:       August 2016
