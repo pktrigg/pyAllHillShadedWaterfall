@@ -1,4 +1,5 @@
 ![Alt text](sample.png?raw=true "Color Shaded Waterfall direct from .all file.")
+![Alt text](sample2.png?raw=true "Gray Shaded Waterfall direct from .all file.")
 pyAllHillShadedWaterfall
 =====
 * created:       August 2016
