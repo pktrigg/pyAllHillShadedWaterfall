@@ -22,6 +22,7 @@ def main():
     parser.add_argument('-i', dest='inputFile', action='store', help='-i <ALLfilename> : input ALL filename to image')
     parser.add_argument('-s', dest='shadeScale', default = 1.0, action='store', help='-s <value> : Shade scale factor. a smaller number (0.1) provides less shade that a larger number (10) Range is anything.  [Default - 1.0]')
     parser.add_argument('-r', action='store_true', default=False, dest='rotate', help='-r : Rotate the resulting waterfall so the image reads from left to right instead of bottom to top.  [Default is bottom to top]')
+    parser.add_argument('-gray', action='store_true', default=False, dest='gray', help='-gray : Apply a gray scale depth palette to the image instead of a color depth.  [Default is False]')
 
     if len(sys.argv)==1:
         parser.print_help()
@@ -37,7 +38,7 @@ def main():
         # navigation = loadNavigation(filename)
         # print (navigation)
         xResolution,yResolution = computeXYResolution(filename)
-        createWaterfall(filename, colors, float(args.shadeScale), xResolution, yResolution, args.rotate)
+        createWaterfall(filename, colors, float(args.shadeScale), xResolution, yResolution, args.rotate, args.gray)
 
 def loadPal(paletteFileName):
     '''this will load and return a .pal file so we can apply colors to depths.  It will strip off the headers from the file and return a list of n*RGB values'''
@@ -93,17 +94,18 @@ def computeXYResolution(fileName):
         if (TypeOfDatagram == 'X') or (TypeOfDatagram == 'D'):
             datagram.read()
             acrossMeans = np.append(acrossMeans, np.average(np.diff(np.asarray(datagram.AcrossTrackDistance))))
-            recCount = recCount + 1 #limit to 100 records so it is fast
-
-        # if recCount == 100:
-            # break
+            recCount = recCount + 1 
+            
+        #limit to a few records so it is fast
+        if recCount == 100:
+            break
     r.close()
     xResolution = np.average(acrossMeans)
     yResolution = distanceTravelled / recCount
     print ("xRes %.2f yRes %.2f" % (xResolution, yResolution))
     return xResolution, yResolution
 
-def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1, rotate=False):
+def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1, rotate=False, gray=False):
     print ("Processing file: ", filename)
 
     r = pyall.ALLReader(filename)
@@ -144,35 +146,39 @@ def createWaterfall(filename, colors, shadeScale=1, xResolution=1, yResolution=1
     # smooth the surface a little so it looks better
     # todo
 
-    #Create hillshade
     meanDepth = np.average(waterfall)
     print ("Mean Depth %.2f" % meanDepth)
     npGrid = np.array(waterfall) * shadeScale   
     # npGrid = np.array(waterfall) * (200 / meanDepth)   
-    hs = sr.calcHillshade(npGrid, 1, 45, 5)
-    hillShadeImage = Image.fromarray(hs).convert('RGBA')
-    # hillshadeFilename = os.path.splitext(filename)[0]+'_HS.png'
-    # hillShadeImage.save(hillshadeFilename)
-
-    # calculate color height map
-    cmrgb = cm.colors.ListedColormap(colors, name='from_list', N=None)
-    # norm = mpl.colors.Normalize(vmin=0, vmax=100)
-    # m = cm.ScalarMappable(cmap=cm.Blues)
-    m = cm.ScalarMappable(cmap=cmrgb)
-    colorArray = m.to_rgba(npGrid, alpha=None, bytes=True)    
-    colorImage = Image.frombuffer('RGBA', (colorArray.shape[1], colorArray.shape[0]), colorArray, 'raw', 'RGBA', 0,1)
-    
-    # now blend the two images
-    blendedImage = ImageChops.subtract(colorImage, hillShadeImage).convert('RGB')
-    #rotate the image if the user requests this.  It is a little better for viewing in a browser
-    if rotate:
-        blendedImage = blendedImage.rotate(-90, expand=True)
-    # now save the file
-    blendedFilename = os.path.splitext(filename)[0]+'_Blended.png'
-    blendedImage.save(blendedFilename, "PNG")
+    if gray:
+        #Create hillshade a little brighter
+        hs = sr.calcHillshade(npGrid, 1, 45, 30)
+        hillShadeImage = Image.fromarray(hs).convert('RGBA')
+        hillshadeFilename = os.path.splitext(filename)[0]+'_HillShadedWaterfall.png'
+        hillShadeImage.save(hillshadeFilename)
+    else:
+        #Create hillshade a little darker as we are blending it
+        hs = sr.calcHillshade(npGrid, 1, 45, 5)
+        hillShadeImage = Image.fromarray(hs).convert('RGBA')
+        # calculate color height map
+        cmrgb = cm.colors.ListedColormap(colors, name='from_list', N=None)
+        # norm = mpl.colors.Normalize(vmin=0, vmax=100)
+        # m = cm.ScalarMappable(cmap=cm.Blues)
+        m = cm.ScalarMappable(cmap=cmrgb)
+        colorArray = m.to_rgba(npGrid, alpha=None, bytes=True)    
+        colorImage = Image.frombuffer('RGBA', (colorArray.shape[1], colorArray.shape[0]), colorArray, 'raw', 'RGBA', 0,1)
+        
+        # now blend the two images
+        blendedImage = ImageChops.subtract(colorImage, hillShadeImage).convert('RGB')
+        #rotate the image if the user requests this.  It is a little better for viewing in a browser
+        if rotate:
+            blendedImage = blendedImage.rotate(-90, expand=True)
+        # now save the file
+        blendedFilename = os.path.splitext(filename)[0]+'_HillShadedWaterfall.png'
+        blendedImage.save(blendedFilename, "PNG")
 
     r.rewind()
-    print("Complete reading ALL file :-)")
+    print("Complete converting ALL file to waterfall :-)")
     r.close()    
 
 def update_progress(job_title, progress):

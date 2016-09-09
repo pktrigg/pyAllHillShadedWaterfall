@@ -13,12 +13,11 @@
                 "WaitOnNormalExit",
                 "RedirectOutput"
             ],
-            "args": ["-i","C:/projects/GP1533/VSM03/em2000-0005-vsm3_15-20151123-023334_P_Depth.all"]
-            
+            "args": ["-gray","-i","C:/development/python/0004_20110307_041009.all"]
         }
    ]
 }
 
+            "args": ["-gray","-i", "C:/development/all/sampledata/EM2040/GeoFocusEM2040400kHzdual-Rx0.5degx1degPitchStabilised.all"]
+            "args": ["-i","C:/projects/GP1533/VSM03/em2000-0005-vsm3_15-20151123-023334_P_Depth.all"]
             "args": ["-i","C:/development/all/sampledata/Justy/em710/0003_20110822_092831_Vector.all"]
-
-            "args": ["-i", "C:/development/all/sampledata/EM2040/GeoFocusEM2040400kHzdual-Rx0.5degx1degPitchStabilised.all"]
