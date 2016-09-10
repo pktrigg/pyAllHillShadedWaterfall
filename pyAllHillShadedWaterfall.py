@@ -100,7 +100,6 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
     start_time = time.time() # time the process
     recCount = 0
     waterfall = []
-    stretchedGrid = np.empty( shape=(0, 0) )
 
     isoStretchFactor = math.ceil(xResolution/yResolution)
     print ("xRes %.2f yRes %.2f AcrossStretch %.2f" % (xResolution, yResolution, isoStretchFactor))
@@ -143,7 +142,9 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
     update_progress("Decoding .all file", 1)
 
     # we now need to interpolate in the along track direction so we have apprximate isometry
-    npGrid = np.array(waterfall) * shadeScale   
+    npGrid = np.array(waterfall) * shadeScale
+
+    stretchedGrid = np.empty( shape=(len(waterfall), 0))    
     for column in npGrid.T:
         y = np.linspace(0, len(column), len(column) * isoStretchFactor) #the required samples
         yp = np.arange(len(column)) 
