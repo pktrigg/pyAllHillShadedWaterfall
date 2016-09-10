@@ -27,6 +27,7 @@ Done
 
 2Do
 ===
+* some files are not as roll stabilised as they might be.  If the user uses equi-angular mode, the Dx values are not suitable for aligning on a per pixel basis.  It simply does nopt work well.  Try the Deakin EM2040 data ona small boat in 50m water as an example.  Therefore we need to take the ping and use numpy to interpolate across the ping so things line up 
 * sort out crash with very small .all files.
 * test to see if we need to smooth the data a little for visual niceness
 * add support for iso stretching by computing the mean pixel spacing in along and across track axes.  We can then stretch the waterfall to approximate isometry
