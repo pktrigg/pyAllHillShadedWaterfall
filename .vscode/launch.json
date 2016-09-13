@@ -13,12 +13,13 @@
                 "WaitOnNormalExit",
                 "RedirectOutput"
             ],
-            "args": ["-i", "C:/development/python/0075_20150519_171612_Merlin.all"]
+            "args": ["-i", "C:/development/python/0004_20110307_041009.all"]
 
         }
    ]
 }
 
+            "args": ["-i", "C:/development/python/0075_20150519_171612_Merlin.all"]
             "args": ["-i", "C:/projects/GP1533/SZ04/SZ04_North/em2000-0015-sz04_01-20151208-172305_P_Depth.all"]
             "args": ["-i","C:/projects/GP1533/VSM03/em2000-0041-vsm3_01-20151123-093734_P_Depth.all"]
             "args": ["-i","C:/projects/GP1533/VSM03/em2000-0006-vsm3_15-20151123-024552_P_Depth.all"]

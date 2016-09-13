@@ -12,6 +12,10 @@ pyAllHillShadedWaterfall
 
 Done
 ====
+* hide NaN warning whe masking in numpy
+* sorted out the poor color interpolation when applying a palette to the depths.  We no longer see contouring at color boundary
+* moved zoom ratio to command line arguments
+* patch pyall for corrupt X packets which have NaN instead of valid depths
 * improved color mapping by settting the colormap to the actual data extents rather than the interp extents.
 * add timestamp annotation and ticks burned into the image
 * some files are not as roll stabilised as they might be.  If the user uses equi-angular mode, the Dx values are not suitable for aligning on a per pixel basis.  It simply does nopt work well.  Try the Deakin EM2040 data ona small boat in 50m water as an example.  Therefore we need to take the ping and use numpy to interpolate across the ping so things line up 

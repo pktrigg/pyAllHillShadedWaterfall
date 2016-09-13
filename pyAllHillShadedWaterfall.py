@@ -19,11 +19,16 @@ from glob import glob
 import argparse
 import matplotlib.cm as cm
 import csv
+import warnings
+
+# ignore numpy NaN warnings when applying a mask to the images.
+warnings.filterwarnings('ignore')
 
 def main():
     parser = argparse.ArgumentParser(description='Read Kongsberg ALL file and create a hill shaded color waterfall image.')
     parser.add_argument('-i', dest='inputFile', action='store', help='-i <ALLfilename> : input ALL filename to image. It can also be a wildcard, e.g. *.all')
-    parser.add_argument('-s', dest='shadeScale', default = 1.0, action='store', help='-s <value> : Shade scale factor. a smaller number (0.1) provides less shade that a larger number (10) Range is anything.  [Default - 1.0]')
+    parser.add_argument('-s', dest='shadeScale', default = 1.0, action='store', help='-s <value> : Shade scale factor. A smaller number (0.1) provides less shade that a larger number (10) Range is anything.  [Default: 1.0]')
+    parser.add_argument('-z', dest='zoom', default = 1.0, action='store', help='-z <value> : Zoom scale factor. A larger number makes a larger image, and a smaller number (0.5) provides a smaller image, e.g -z 2 makes an image twice the native resolution. [Default: 1.0]')
     parser.add_argument('-r', action='store_true', default=False, dest='rotate', help='-r : Rotate the resulting waterfall so the image reads from left to right instead of bottom to top.  [Default is bottom to top]')
     parser.add_argument('-gray', action='store_true', default=False, dest='gray', help='-gray : Apply a gray scale depth palette to the image instead of a color depth.  [Default is False]')
 
@@ -32,11 +37,10 @@ def main():
         sys.exit(1)
     
     #load a nice color palette
-    colors = loadPal(os.path.dirname(os.path.realpath(__file__)) + '/jeca.pal')
+    colors = loadPalette(os.path.dirname(os.path.realpath(__file__)) + '/jeca.pal')
     args = parser.parse_args()
 
     print ("processing with settings: ", args)
-    # print ("Files to Process:", glob(args.inputFile))
     for filename in glob(args.inputFile):
         xResolution, yResolution, beamCount, leftExtent, rightExtent, navigation = computeXYResolution(filename)
         print("XRes %.2f YRes %.2f beamCount %d leftExtent %.2f, rightExtent %.2f" % (xResolution, yResolution, beamCount, leftExtent, rightExtent)) 
@@ -44,7 +48,7 @@ def main():
         if beamCount == 0:
             print ("No data to process, skipping empty file")
             continue
-        createWaterfall(filename, colors, beamCount, float(args.shadeScale), xResolution, yResolution, args.rotate, args.gray, leftExtent, rightExtent, navigation)
+        createWaterfall(filename, colors, beamCount, float(args.shadeScale), float(args.zoom), xResolution, yResolution, args.rotate, args.gray, leftExtent, rightExtent, navigation)
 
 def computeXYResolution(fileName):    
     '''compute the approximate across and alongtrack resolution so we can make a nearly isometric Image'''
@@ -95,19 +99,18 @@ def computeXYResolution(fileName):
     yResolution = distanceTravelled / recCount
     return xResolution, yResolution, beamCount, np.min(leftExtents), np.max(rightExtents), navigation
 
-def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yResolution=1, rotate=False, gray=False, leftExtent=-100, rightExtent=100, navigation = []):
+def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, xResolution=1, yResolution=1, rotate=False, gray=False, leftExtent=-100, rightExtent=100, navigation = []):
     print ("Processing file: ", filename)
 
     r = pyall.ALLReader(filename)
     totalrecords = r.getRecordCount()
     start_time = time.time() # time the process
     recCount = 0
-    imageZoom = 1
     waterfall = []
     minDepth = 9999.0
     maxDepth = -minDepth
-    outputResolution = beamCount * imageZoom
-    isoStretchFactor = (yResolution/xResolution) * imageZoom
+    outputResolution = beamCount * zoom
+    isoStretchFactor = (yResolution/xResolution) * zoom
     # print ("xRes %.2f yRes %.2f AcrossStretch %.2f" % (xResolution, yResolution, isoStretchFactor))
     while r.moreData():
         TypeOfDatagram, datagram = r.readDatagram()
@@ -139,6 +142,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
             update_progress("Decoding .all file", percentageRead)
     update_progress("Decoding .all file", 1)
 
+    print ("correcting for vessel speed...")
     # we now need to interpolate in the along track direction so we have apprximate isometry
     npGrid = np.array(waterfall)
     # npGrid = np.ma.masked_values(npGrid, 0.0)
@@ -154,35 +158,39 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
     npGrid = np.ma.masked_values(npGrid, 0.0)
     # meanDepth = np.average(waterfall)
     # print ("Mean Depth %.2f" % meanDepth)
+    print ("color mapping...")
+    
     if gray:
-        #Create hillshade a little brighter
-        npGrid = npGrid.T * -1.0 * shadeScale
+        #Create hillshade a little brighter and invert so hills look like hills
+        npGrid = npGrid.T * shadeScale
         hs = sr.calcHillshade(npGrid, 1, 45, 30)
         img = Image.fromarray(hs).convert('RGBA')
     else:
-        print (minDepth, maxDepth)
-        npGrid = npGrid.T * shadeScale
-        #Create hillshade a little darker as we are blending it
-        hs = sr.calcHillshade(npGrid, 1, 45, 5)
-        img = Image.fromarray(hs).convert('RGBA')
+        npGrid = npGrid.T
         # calculate color height map
         cmrgb = cm.colors.ListedColormap(colors, name='from_list', N=None)
         m = cm.ScalarMappable(cmap=cmrgb)
         m.set_clim(vmin=minDepth, vmax=maxDepth)
         colorArray = m.to_rgba(npGrid, alpha=None, bytes=True)    
         colorImage = Image.frombuffer('RGBA', (colorArray.shape[1], colorArray.shape[0]), colorArray, 'raw', 'RGBA', 0,1)
+
+        #Create hillshade a little darker as we are blending it. we do not need to invert as we are subtracting the shade from the color image
+        npGrid = npGrid * shadeScale 
+        hs = sr.calcHillshade(npGrid, 1, 45, 5)
+        img = Image.fromarray(hs).convert('RGBA')
+
         # now blend the two images
         img = ImageChops.subtract(colorImage, img).convert('RGB')
 
     #rotate the image if the user requests this.  It is a little better for viewing in a browser
+    annotateWaterfall(img, navigation, isoStretchFactor)
     if rotate:
         img = img.rotate(-90, expand=True)
-    annotateWaterfall(img, navigation, isoStretchFactor)
     img.save(os.path.splitext(filename)[0]+'.png')
     print ("Saved to: ", os.path.splitext(filename)[0]+'.png')
 
-    r.rewind()
-    print("Complete converting ALL file to waterfall :-)")
+    # r.rewind()
+    # print("Complete converting ALL file to waterfall :-)")
     r.close()    
 
 def annotateWaterfall(img, navigation, scaleFactor):
@@ -195,15 +203,15 @@ def annotateWaterfall(img, navigation, scaleFactor):
             lastRecord = record
     return img
 
-def writeLabel(img, x, label):
-    y = 0
+def writeLabel(img, y, label):
+    x = 0
     f = ImageFont.truetype("arial.ttf",size=16)
     txt=Image.new('L', (500,50))
     d = ImageDraw.Draw(txt)
     d.text( (0, 0), label,  font=f, fill=255)
     d.line((0, 0, 20, 0), fill=255)
-    w=txt.rotate(-90,  expand=1)
-    img.paste( ImageOps.colorize(w, (0,0,0), (0,0,255)), (x, y),  w)
+    # w=txt.rotate(-90,  expand=1)
+    img.paste( ImageOps.colorize(txt, (0,0,0), (0,0,255)), (x, y),  txt)
     return img
 
 def update_progress(job_title, progress):
@@ -215,7 +223,7 @@ def update_progress(job_title, progress):
     sys.stdout.flush()
 
 
-def loadPal(paletteFileName):
+def loadPalette(paletteFileName):
     '''this will load and return a .pal file so we can apply colors to depths.  It will strip off the headers from the file and return a list of n*RGB values'''
     colors = []
     with open(paletteFileName,'r') as f:
@@ -226,6 +234,26 @@ def loadPal(paletteFileName):
         for red,green,blue in reader:
             thiscolor = [float(red)/255.0, float(green) / 255.0, float(blue) / 255.0]
             colors.append(thiscolor)
+    # now interpolate the colors so we have a broader spectrum
+    reds = [ seq[0] for seq in colors ]
+    x = np.linspace(1, len(reds), 256) #the desied samples needs to be about the same as the original number of samples
+    xp = np.linspace(1, len(reds), len(reds)) #the actual sample spacings
+    newReds = np.interp(x, xp, reds, left=0.0, right=0.0)
+    
+    greens = [ seq[1] for seq in colors ]
+    x = np.linspace(1, len(greens), 256) #the desied samples needs to be about the same as the original number of samples
+    xp = np.linspace(1, len(greens), len(greens)) #the actual sample spacings
+    newGreens = np.interp(x, xp, greens, left=0.0, right=0.0)
+    
+    blues = [ seq[2] for seq in colors ]
+    x = np.linspace(1, len(blues), 256) #the desied samples needs to be about the same as the original number of samples, spread across the across track range
+    xp = np.linspace(1, len(blues), len(blues)) #the actual sample spacings
+    newBlues = np.interp(x, xp, blues, left=0.0, right=0.0)
+
+    colors = []
+    for i in range(0,len(newReds)):
+        colors.append([newReds[i], newGreens[i], newBlues[i]])
+
     return colors
 
 def loadNavigation(fileName):    
