@@ -102,8 +102,10 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
     totalrecords = r.getRecordCount()
     start_time = time.time() # time the process
     recCount = 0
-    imageZoom = 4
+    imageZoom = 1
     waterfall = []
+    minDepth = 9999.0
+    maxDepth = -minDepth
     outputResolution = beamCount * imageZoom
     isoStretchFactor = (yResolution/xResolution) * imageZoom
     # print ("xRes %.2f yRes %.2f AcrossStretch %.2f" % (xResolution, yResolution, isoStretchFactor))
@@ -120,6 +122,10 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
             for d in range(len(datagram.Depth)):
                 datagram.Depth[d] = datagram.Depth[d] + datagram.TransducerDepth
 
+            # we need to remember the actual data extents so we can set the color palette mappings to the same limits. 
+            minDepth = min(minDepth, min(datagram.Depth))
+            maxDepth = max(maxDepth, max(datagram.Depth))
+
             # we need to stretch the data to make it isometric, so lets use numpy interp routing to do that for Us
             xp = np.array(datagram.AcrossTrackDistance) #the x distance for the beams of a ping.  we could possibly use teh real values here instead todo
             fp = np.array(datagram.Depth) #the depth list as a numpy array
@@ -135,7 +141,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
 
     # we now need to interpolate in the along track direction so we have apprximate isometry
     npGrid = np.array(waterfall)
-    npGrid = np.ma.masked_values(npGrid, 0.0)
+    # npGrid = np.ma.masked_values(npGrid, 0.0)
 
     stretchedGrid = np.empty((0, int(len(npGrid) * isoStretchFactor)))    
     for column in npGrid.T:
@@ -154,6 +160,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
         hs = sr.calcHillshade(npGrid, 1, 45, 30)
         img = Image.fromarray(hs).convert('RGBA')
     else:
+        print (minDepth, maxDepth)
         npGrid = npGrid.T * shadeScale
         #Create hillshade a little darker as we are blending it
         hs = sr.calcHillshade(npGrid, 1, 45, 5)
@@ -161,6 +168,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, xResolution=1, yR
         # calculate color height map
         cmrgb = cm.colors.ListedColormap(colors, name='from_list', N=None)
         m = cm.ScalarMappable(cmap=cmrgb)
+        m.set_clim(vmin=minDepth, vmax=maxDepth)
         colorArray = m.to_rgba(npGrid, alpha=None, bytes=True)    
         colorImage = Image.frombuffer('RGBA', (colorArray.shape[1], colorArray.shape[0]), colorArray, 'raw', 'RGBA', 0,1)
         # now blend the two images
