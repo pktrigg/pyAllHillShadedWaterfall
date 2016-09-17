@@ -12,7 +12,8 @@ pyAllHillShadedWaterfall
 
 Done
 ====
-* hide NaN warning whe masking in numpy
+* test with EM302 units.
+* hide NaN warning when masking in numpy
 * sorted out the poor color interpolation when applying a palette to the depths.  We no longer see contouring at color boundary
 * moved zoom ratio to command line arguments
 * patch pyall for corrupt X packets which have NaN instead of valid depths
@@ -36,15 +37,34 @@ Done
 
 2Do
 ===
+* fix decode of EM300
+* figure out the EM3002 stretch problem
+* figure out why no annotation on Merlin dataset in 8m water
+* add option to despike the data using numpy median filter.  Use Pipe as an example / test case 
+* add dX scale to left edge of plot.
+* add dy scale to bottom left of plot
+* add color legend to bottom left of plot
 * check rotated image so we know the survey direction is L-->Read
-* test with EM302 units.
 * add support for dual heads
 * we need to automate a decent shadescale factor.  Here are some numbers to estimate that
     Depth GoodScale
     20   2.0    20*2
     35   1.5    Em2000 AUV
     2830 0.2    2830*0.2=566
-
+  
+    Depth    SwathWidth   GoodScale
+    5.58,38.15,1.0-1.5, EM2040 justy
+    10,96,
+    32, 291,0.5, Deakin
+    35, 210, 0.5, EM2000
+    37,70,0.8, Pipe
+    91, 400, 1.0, EM2040 KM
+    236 844 0.2-0.3,  EM710 0003_201
+    1728,8461,0.05, EM302 FugroEquator
+    2767, 7947,,EM302 FugroEquator
+    2758,3789,0.05,EM302 Africa
+    2973,8084, 0.02, em302 eq calcd 
+    3684,13342, 0.01, EM122
 
 Example Reader
 -------
