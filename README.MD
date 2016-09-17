@@ -52,13 +52,15 @@ Done
     35   1.5    Em2000 AUV
     2830 0.2    2830*0.2=566
   
+    * Power Curve for shading
+    * y = 37.978x-0.783
+
     Depth    SwathWidth   GoodScale
-    5.58,38.15,1.0-1.5, EM2040 justy
-    10,96,
-    32, 291,0.5, Deakin
-    35, 210, 0.5, EM2000
-    37,70,0.8, Pipe
-    91, 400, 1.0, EM2040 KM
+    * 5.58,38.15,1.0-1.5, EM2040 justy
+    * 32, 291,0.5, Deakin
+    * 35, 210, 0.5, EM2000
+    * 37,70,0.8, Pipe
+    * 91, 400, 1.0, EM2040 KM
     236 844 0.2-0.3,  EM710 0003_201
     1728,8461,0.05, EM302 FugroEquator
     2767, 7947,,EM302 FugroEquator

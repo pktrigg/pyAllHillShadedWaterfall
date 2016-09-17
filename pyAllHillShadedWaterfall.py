@@ -23,7 +23,7 @@ warnings.filterwarnings('ignore')
 def main():
     parser = argparse.ArgumentParser(description='Read Kongsberg ALL file and create a hill shaded color waterfall image.')
     parser.add_argument('-i', dest='inputFile', action='store', help='-i <ALLfilename> : input ALL filename to image. It can also be a wildcard, e.g. *.all')
-    parser.add_argument('-s', dest='shadeScale', default = 1.0, action='store', help='-s <value> : Shade scale factor. A smaller number (0.1) provides less shade that a larger number (10) Range is anything.  [Default: 1.0]')
+    parser.add_argument('-s', dest='shadeScale', default = 0, action='store', help='-s <value> : Override Automatic Shade scale factor with this value. A smaller number (0.1) provides less shade that a larger number (10) Range is anything.  [Default: 0]')
     parser.add_argument('-z', dest='zoom', default = 1.0, action='store', help='-z <value> : Zoom scale factor. A larger number makes a larger image, and a smaller number (0.5) provides a smaller image, e.g -z 2 makes an image twice the native resolution. [Default: 1.0]')
     parser.add_argument('-a', action='store_true', default=True, dest='annotate', help='-a : Annotate the image with timestamps.  [Default: True]')
     parser.add_argument('-r', action='store_true', default=False, dest='rotate', help='-r : Rotate the resulting waterfall so the image reads from left to right instead of bottom to top.  [Default is bottom to top]')
@@ -41,7 +41,10 @@ def main():
     for filename in glob(args.inputFile):
         xResolution, yResolution, beamCount, leftExtent, rightExtent, navigation = computeXYResolution(filename)
         print("XRes %.2f YRes %.2f beamCount %d leftExtent %.2f, rightExtent %.2f, swathWidth %.2f" % (xResolution, yResolution, beamCount, leftExtent, rightExtent, abs(leftExtent)+abs(rightExtent))) 
-        
+        if (args.shadeScale==0): 
+            args.shadeScale = 30 * math.pow(abs(leftExtent)+abs(rightExtent), -0.783)
+            # args.shadeScale = 38 * math.pow(abs(leftExtent)+abs(rightExtent), -0.783)
+            # print (args.shadeScale)
         if beamCount == 0:
             print ("No data to process, skipping empty file")
             continue
@@ -154,8 +157,8 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
         stretchedGrid = np.append(stretchedGrid, [w2],axis=0)
     npGrid = stretchedGrid
     npGrid = np.ma.masked_values(npGrid, 0.0)
-    meanDepth = np.average(waterfall)
-    print ("Mean Depth %.2f" % meanDepth)
+    # meanDepth = np.average(waterfall)
+    # print ("Mean Depth %.2f" % meanDepth)
     print ("color mapping...")
     
     if gray:
@@ -183,11 +186,38 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
     if annotate:
         #rotate the image if the user requests this.  It is a little better for viewing in a browser
         annotateWaterfall(img, navigation, isoStretchFactor)
+        createLegend(img.width, np.size(npGrid)[0] , np.size(npGrid)[1], waterfallPixelSize, MeanDepth):
 
     if rotate:
         img = img.rotate(-90, expand=True)
     img.save(os.path.splitext(filename)[0]+'.png')
     print ("Saved to: ", os.path.splitext(filename)[0]+'.png')
+
+
+
+
+def createLegend(height=640, waterfallWidth, waterfallLength, waterfallPixelSize, MeanDepth):
+    '''make a legend specific for this waterfalls image'''
+    # this legend will contain:
+    # Waterfall Width: xxx.xxm
+    # Waterfall Length: xxx.xxxm
+    # Waterfall Pixel Size: xx.xxm
+    # InputFileName: <filename>
+    # Mean Depth: xx.xxm
+    # Color Palette as a graphical representation
+
+    x = 0
+    f = ImageFont.truetype("arial.ttf",size=16)
+    txt=Image.new('L', (height,height)) # the new image.  this needs to be the same width as the main waterfall image
+    
+    d = ImageDraw.Draw(Width)
+    d.text( (0, 0), label,  font=f, fill=255)
+    d.line((0, 0, 20, 0), fill=255)
+    # w=txt.rotate(-90,  expand=1)
+    img.paste( ImageOps.colorize(txt, (0,0,0), (0,0,255)), (x, y),  txt)
+    return img
+
+
 
 
 def annotateWaterfall(img, navigation, scaleFactor):
