@@ -158,7 +158,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
         print ("Hillshading...")
         #Create hillshade a little brighter and invert so hills look like hills
         colorMap = None
-        npGrid = npGrid.T * shadeScale
+        npGrid = npGrid.T * shadeScale * -1.0
         hs = sr.calcHillshade(npGrid, 1, 45, 30)
         img = Image.fromarray(hs).convert('RGBA')
     else:
