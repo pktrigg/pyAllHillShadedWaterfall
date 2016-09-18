@@ -7,7 +7,7 @@ from datetime import datetime
 import geodetic
 from glob import glob
 import math
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 from matplotlib import cm
 import numpy as np
 from PIL import Image,ImageDraw,ImageFont, ImageOps, ImageChops
@@ -39,16 +39,15 @@ def main():
 
     print ("processing with settings: ", args)
     for filename in glob(args.inputFile):
-        xResolution, yResolution, beamCount, leftExtent, rightExtent, navigation = computeXYResolution(filename)
-        print("XRes %.2f YRes %.2f beamCount %d leftExtent %.2f, rightExtent %.2f, swathWidth %.2f" % (xResolution, yResolution, beamCount, leftExtent, rightExtent, abs(leftExtent)+abs(rightExtent))) 
+        xResolution, yResolution, beamCount, leftExtent, rightExtent, distanceTravelled, navigation = computeXYResolution(filename)
+        # print("XRes %.2f YRes %.2f beamCount %d leftExtent %.2f, rightExtent %.2f, swathWidth %.2f" % (xResolution, yResolution, beamCount, leftExtent, rightExtent, abs(leftExtent)+abs(rightExtent))) 
         if (args.shadeScale==0): 
-            args.shadeScale = 30 * math.pow(abs(leftExtent)+abs(rightExtent), -0.783)
+            args.shadeScale = 35 * math.pow(abs(leftExtent)+abs(rightExtent), -0.783)
             # args.shadeScale = 38 * math.pow(abs(leftExtent)+abs(rightExtent), -0.783)
-            # print (args.shadeScale)
         if beamCount == 0:
             print ("No data to process, skipping empty file")
             continue
-        createWaterfall(filename, colors, beamCount, float(args.shadeScale), float(args.zoom), args.annotate, xResolution, yResolution, args.rotate, args.gray, leftExtent, rightExtent, navigation)
+        createWaterfall(filename, colors, beamCount, float(args.shadeScale), float(args.zoom), args.annotate, xResolution, yResolution, args.rotate, args.gray, leftExtent, rightExtent, distanceTravelled, navigation)
 
 def computeXYResolution(fileName):    
     '''compute the approximate across and alongtrack resolution so we can make a nearly isometric Image'''
@@ -89,17 +88,14 @@ def computeXYResolution(fileName):
                 recCount = recCount + 1
                 beamCount = max(beamCount, len(datagram.Depth)) 
             
-        #limit to a few records so it is fast
-        # if recCount == 100:
-        #     break
     r.close()
     if recCount == 0:
         return 0,0,0,0,0,[] 
     xResolution = np.average(acrossMeans)
     yResolution = distanceTravelled / recCount
-    return xResolution, yResolution, beamCount, np.min(leftExtents), np.max(rightExtents), navigation
+    return xResolution, yResolution, beamCount, np.min(leftExtents), np.max(rightExtents), distanceTravelled, navigation
 
-def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotate=True, xResolution=1, yResolution=1, rotate=False, gray=False, leftExtent=-100, rightExtent=100, navigation = []):
+def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotate=True, xResolution=1, yResolution=1, rotate=False, gray=False, leftExtent=-100, rightExtent=100, distanceTravelled=0, navigation=[]):
     print ("Processing file: ", filename)
 
     r = pyall.ALLReader(filename)
@@ -111,7 +107,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
     maxDepth = -minDepth
     outputResolution = beamCount * zoom
     isoStretchFactor = (yResolution/xResolution) * zoom
-    print ("xRes %.2f yRes %.2f AcrossStretch %.2f" % (xResolution, yResolution, isoStretchFactor))
+    # print ("xRes %.2f yRes %.2f AcrossStretch %.2f" % (xResolution, yResolution, isoStretchFactor))
     while r.moreData():
         TypeOfDatagram, datagram = r.readDatagram()
         if (TypeOfDatagram == 0):
@@ -144,8 +140,8 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
     r.close()    
 
     # we have all data loaded, so now lets make a waterfall image...
-
-    print ("correcting for vessel speed...")
+    #---------------------------------------------------------------    
+    print ("Correcting for vessel speed...")
     # we now need to interpolate in the along track direction so we have apprximate isometry
     npGrid = np.array(waterfall)
 
@@ -157,24 +153,23 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
         stretchedGrid = np.append(stretchedGrid, [w2],axis=0)
     npGrid = stretchedGrid
     npGrid = np.ma.masked_values(npGrid, 0.0)
-    # meanDepth = np.average(waterfall)
-    # print ("Mean Depth %.2f" % meanDepth)
-    print ("color mapping...")
     
     if gray:
+        print ("Hillshading...")
         #Create hillshade a little brighter and invert so hills look like hills
+        colorMap = None
         npGrid = npGrid.T * shadeScale
         hs = sr.calcHillshade(npGrid, 1, 45, 30)
         img = Image.fromarray(hs).convert('RGBA')
     else:
+        print ("Color mapping...")
         npGrid = npGrid.T
         # calculate color height map
         cmrgb = cm.colors.ListedColormap(colors, name='from_list', N=None)
-        m = cm.ScalarMappable(cmap=cmrgb)
-        m.set_clim(vmin=minDepth, vmax=maxDepth)
-        colorArray = m.to_rgba(npGrid, alpha=None, bytes=True)    
+        colorMap = cm.ScalarMappable(cmap=cmrgb)
+        colorMap.set_clim(vmin=minDepth, vmax=maxDepth)
+        colorArray = colorMap.to_rgba(npGrid, alpha=None, bytes=True)    
         colorImage = Image.frombuffer('RGBA', (colorArray.shape[1], colorArray.shape[0]), colorArray, 'raw', 'RGBA', 0,1)
-
         #Create hillshade a little darker as we are blending it. we do not need to invert as we are subtracting the shade from the color image
         npGrid = npGrid * shadeScale 
         hs = sr.calcHillshade(npGrid, 1, 45, 5)
@@ -186,46 +181,24 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
     if annotate:
         #rotate the image if the user requests this.  It is a little better for viewing in a browser
         annotateWaterfall(img, navigation, isoStretchFactor)
-        createLegend(img.width, np.size(npGrid)[0] , np.size(npGrid)[1], waterfallPixelSize, MeanDepth):
+        meanDepth = np.average(waterfall)
+        waterfallPixelSize = (abs(rightExtent) + abs(rightExtent)) /  img.width
+        # print ("Mean Depth %.2f" % meanDepth)
+        imgLegend = createLegend(filename, img.width, (abs(leftExtent)+abs(rightExtent)), distanceTravelled, waterfallPixelSize, minDepth, maxDepth, meanDepth, colorMap)
+        img = spliceImages(img, imgLegend)
 
     if rotate:
         img = img.rotate(-90, expand=True)
     img.save(os.path.splitext(filename)[0]+'.png')
     print ("Saved to: ", os.path.splitext(filename)[0]+'.png')
 
-
-
-
-def createLegend(height=640, waterfallWidth, waterfallLength, waterfallPixelSize, MeanDepth):
-    '''make a legend specific for this waterfalls image'''
-    # this legend will contain:
-    # Waterfall Width: xxx.xxm
-    # Waterfall Length: xxx.xxxm
-    # Waterfall Pixel Size: xx.xxm
-    # InputFileName: <filename>
-    # Mean Depth: xx.xxm
-    # Color Palette as a graphical representation
-
-    x = 0
-    f = ImageFont.truetype("arial.ttf",size=16)
-    txt=Image.new('L', (height,height)) # the new image.  this needs to be the same width as the main waterfall image
-    
-    d = ImageDraw.Draw(Width)
-    d.text( (0, 0), label,  font=f, fill=255)
-    d.line((0, 0, 20, 0), fill=255)
-    # w=txt.rotate(-90,  expand=1)
-    img.paste( ImageOps.colorize(txt, (0,0,0), (0,0,255)), (x, y),  txt)
-    return img
-
-
-
-
 def annotateWaterfall(img, navigation, scaleFactor):
     '''loop through the navigation and annotate'''
     lastTime = 0.0 
     lastRecord = 0
     for record, date, lat, long in navigation:
-        if (record % 100 == 0) and (record != lastRecord):
+        # if (record % 100 == 0) and (record != lastRecord):
+        if (record - lastRecord >= 100):
             writeLabel(img, int(record * scaleFactor), str(date.strftime("%H:%M:%S")))
             lastRecord = record
     return img
@@ -233,12 +206,14 @@ def annotateWaterfall(img, navigation, scaleFactor):
 def writeLabel(img, y, label):
     x = 0
     f = ImageFont.truetype("arial.ttf",size=16)
-    txt=Image.new('L', (500,50))
+    txt=Image.new('RGBA', (500,16))
     d = ImageDraw.Draw(txt)
-    d.text( (0, 0), label,  font=f, fill=255)
-    d.line((0, 0, 20, 0), fill=255)
+    d.text( (0, 0), label,  font=f, fill=(255,255,255))
+    d.line((0, 0, 20, 0), fill=(0,0,255))
     # w=txt.rotate(-90,  expand=1)
-    img.paste( ImageOps.colorize(txt, (0,0,0), (0,0,255)), (x, y),  txt)
+    offset = (x, y)
+    img.paste(txt, offset, txt)
+    # img.paste( ImageOps.colorize(txt, (0,0,0), (0,0,255)), (x, y),  txt)
     return img
 
 def update_progress(job_title, progress):
@@ -248,7 +223,6 @@ def update_progress(job_title, progress):
     if progress >= 1: msg += " DONE\r\n"
     sys.stdout.write(msg)
     sys.stdout.flush()
-
 
 def loadPalette(paletteFileName):
     '''this will load and return a .pal file so we can apply colors to depths.  It will strip off the headers from the file and return a list of n*RGB values'''
@@ -280,7 +254,6 @@ def loadPalette(paletteFileName):
     colors = []
     for i in range(0,len(newReds)):
         colors.append([newReds[i], newGreens[i], newBlues[i]])
-
     return colors
 
 def loadNavigation(fileName):    
@@ -294,6 +267,97 @@ def loadNavigation(fileName):
             navigation.append([datagram.Time, datagram.Latitude, datagram.Longitude])
     r.close()
     return navigation
+
+def spliceImages(img1, img2):
+    # images = map(Image.open, ['Test1.jpg', 'Test2.jpg', 'Test3.jpg'])
+    images = [img1, img2]
+    widths, heights = zip(*(i.size for i in images))
+
+    width = max(widths)
+    height = sum(heights)
+
+    new_im = Image.new('RGB', (width, height))
+
+    y_offset = 0
+    for im in images:
+        new_im.paste(im, (0, y_offset))
+        y_offset += im.size[1]
+    return new_im
+
+def createLegend(fileName, imageWidth=640, waterfallWidth=640, waterfallLength=640, waterfallPixelSize=1, minDepth=0, maxDepth=999, meanDepth=99, colorMap=None):
+    '''make a legend specific for this waterfalls image'''
+    # this legend will contain:
+    # InputFileName: <filename>
+    # Waterfall Width: xxx.xxm
+    # Waterfall Length: xxx.xxxm
+    # Waterfall Pixel Size: xx.xxm
+    # Mean Depth: xx.xxm
+    # Color Palette as a graphical representation
+
+    x = 0
+    y=0
+    fontHeight = 18
+    npGrid = np.array([])
+
+    f = ImageFont.truetype("cour.ttf",size=fontHeight)
+    img=Image.new('RGB', (imageWidth,256)) # the new image.  this needs to be the same width as the main waterfall image
+    
+    d = ImageDraw.Draw(img)
+
+    label = "file:%s" % (fileName)
+    white=(255,255,255)
+    d.text( (x, y), label,  font=f, fill=white)
+
+    y += fontHeight
+    label = "Waterfall Width    : %.2fm" % (waterfallWidth)
+    d.text( (x, y), label,  font=f, fill=white)
+
+    y += fontHeight
+    label = "Waterfall Length   : %.2fm" % (waterfallLength)
+    d.text( (x, y), label,  font=f, fill=white)
+
+    y += fontHeight
+    label = "Pixel Size         : %.2fm" % (waterfallPixelSize)
+    d.text( (x, y), label,  font=f, fill=white)
+
+    y += fontHeight
+    label = "Minimum Depth      : %.2fm" % (minDepth)
+    d.text( (x, y), label,  font=f, fill=white)
+
+    y += fontHeight
+    label = "Maximum Depth      : %.2fm" % (maxDepth)
+    d.text( (x, y), label,  font=f, fill=white)
+
+    y += fontHeight
+    label = "Mean Depth         : %.2fm" % (meanDepth)
+    d.text( (x, y), label,  font=f, fill=white)
+
+    if (colorMap==None):
+        return img
+    # Creates a list containing 5 lists, each of 8 items, all set to 0
+    y += fontHeight
+    npline = np.linspace(start=minDepth, stop=maxDepth, num=imageWidth - ( fontHeight)) # length of colorbar is almost same as image
+    npGrid = np.hstack((npGrid, npline))
+    for i in range(fontHeight*2): # height of colorbar
+        npGrid = np.vstack((npGrid, npline))
+    colorArray = colorMap.to_rgba(npGrid, alpha=None, bytes=True)    
+    colorImage = Image.frombuffer('RGB', (colorArray.shape[1], colorArray.shape[0]), colorArray, 'raw', 'RGBA', 0,1)
+    offset = x + int (fontHeight/2), y
+    img.paste(colorImage,offset)
+
+    # now make the depth labels alongside the colorbar
+    y += 2 + fontHeight * 2
+    labels = np.linspace(minDepth, maxDepth, 10)
+    for l in labels:
+        label= "%.2f" % (l)
+        x = (l-minDepth) * ((imageWidth - fontHeight) / (maxDepth-minDepth))
+        offset = int(x), int(y)
+        txt=Image.new('RGB', (70,20))
+        d = ImageDraw.Draw(txt)
+        d.text( (0, 0), label,  font=f, fill=white)
+        w=txt.rotate(90,  expand=1)
+        img.paste( w, offset)
+    return img
 
 if __name__ == "__main__":
     main()

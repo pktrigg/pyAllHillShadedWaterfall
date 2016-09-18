@@ -12,6 +12,12 @@ pyAllHillShadedWaterfall
 
 Done
 ====
+* we need to automate a decent shadescale factor.  Here are some numbers to estimate that
+* add color legend to bottom left of plot
+* add dX scale to left edge of plot.
+* add dy scale to bottom left of plot
+* check rotated image so we know the survey direction is L-->Read
+* figure out why no annotation on Merlin dataset in 8m water
 * test with EM302 units.
 * hide NaN warning when masking in numpy
 * sorted out the poor color interpolation when applying a palette to the depths.  We no longer see contouring at color boundary
@@ -39,36 +45,25 @@ Done
 ===
 * fix decode of EM300
 * figure out the EM3002 stretch problem
-* figure out why no annotation on Merlin dataset in 8m water
 * add option to despike the data using numpy median filter.  Use Pipe as an example / test case 
-* add dX scale to left edge of plot.
-* add dy scale to bottom left of plot
-* add color legend to bottom left of plot
-* check rotated image so we know the survey direction is L-->Read
 * add support for dual heads
-* we need to automate a decent shadescale factor.  Here are some numbers to estimate that
-    Depth GoodScale
-    20   2.0    20*2
-    35   1.5    Em2000 AUV
-    2830 0.2    2830*0.2=566
-  
-    * Power Curve for shading
-    * y = 37.978x-0.783
 
-    Depth    SwathWidth   GoodScale
-    * 5.58,38.15,1.0-1.5, EM2040 justy
-    * 32, 291,0.5, Deakin
-    * 35, 210, 0.5, EM2000
-    * 37,70,0.8, Pipe
-    * 91, 400, 1.0, EM2040 KM
-    236 844 0.2-0.3,  EM710 0003_201
-    1728,8461,0.05, EM302 FugroEquator
-    2767, 7947,,EM302 FugroEquator
-    2758,3789,0.05,EM302 Africa
-    2973,8084, 0.02, em302 eq calcd 
-    3684,13342, 0.01, EM122
+* Power Curve for shading
+* y = 37.978x-0.783
+* Depth    SwathWidth   GoodScale
+* 5.58,38.15,1.0-1.5, EM2040 justy
+* 32, 291,0.5, Deakin
+* 35, 210, 0.5, EM2000
+* 37,70,0.8, Pipe
+* 91, 400, 1.0, EM2040 KM
+236 844 0.2-0.3,  EM710 0003_201
+1728,8461,0.05, EM302 FugroEquator
+2767, 7947,,EM302 FugroEquator
+2758,3789,0.05,EM302 Africa
+2973,8084, 0.02, em302 eq calcd 
+3684,13342, 0.01, EM122
 
-Example Reader
+Example
 -------
 ```
 python pyallhillshadedwaterfall.py
@@ -78,23 +73,27 @@ python pyallhillshadedwaterfall.py -i *.all
 help
 ----
 
-
-C:\projects\GP1533\VSM03>python c:\development\python\pyAllhillshadedWaterfall\pyAllHillShadedWaterfall.py
-usage: pyAllHillShadedWaterfall.py [-h] [-i INPUTFILE] [-s SHADESCALE] [-r]
-                                   [-gray]
+C:\development\python>python c:\development\python\pyAllHillShadedWaterfall\pyAllHillShadedWaterfall.py
+usage: pyAllHillShadedWaterfall.py [-h] [-i INPUTFILE] [-s SHADESCALE] [-z ZOOM] [-a] [-r] [-gray]
 
 Read Kongsberg ALL file and create a hill shaded color waterfall image.
 
 optional arguments:
   -h, --help     show this help message and exit
-  -i INPUTFILE   -i <ALLfilename> : input ALL filename to image
-  -s SHADESCALE  -s <value> : Shade scale factor. a smaller number (0.1)
-                 provides less shade that a larger number (10) Range is
-                 anything. [Default - 1.0]
+  -i INPUTFILE   -i <ALLfilename> : input ALL filename to image. It can also
+                 be a wildcard, e.g. *.all
+  -s SHADESCALE  -s <value> : Override Automatic Shade scale factor with this
+                 value. A smaller number (0.1) provides less shade that a
+                 larger number (10) Range is anything. [Default: 0]
+  -z ZOOM        -z <value> : Zoom scale factor. A larger number makes a
+                 larger image, and a smaller number (0.5) provides a smaller
+                 image, e.g -z 2 makes an image twice the native resolution.
+                 [Default: 1.0]
+  -a             -a : Annotate the image with timestamps. [Default: True]
   -r             -r : Rotate the resulting waterfall so the image reads from
                  left to right instead of bottom to top. [Default is bottom to
                  top]
   -gray          -gray : Apply a gray scale depth palette to the image instead
                  of a color depth. [Default is False]
 
-
+C:\development\python>
