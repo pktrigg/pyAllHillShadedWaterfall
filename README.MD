@@ -7,11 +7,12 @@ pyAllHillShadedWaterfall
 * description:   python module to convert a Kongsberg .all file into hillshaded waterfall PNG.
 * notes:         See main at end of script for example how to use this
 * based on ALL file version 
-* version 1.00
+* version 1.10
 * developed for Python version 3.4 
 
 Done
 ====
+* if very few samples, auto zoom to improve image quality
 * we need to automate a decent shadescale factor.  Here are some numbers to estimate that
 * add color legend to bottom left of plot
 * add dX scale to left edge of plot.
@@ -65,7 +66,7 @@ Done
 
 Example
 -------
-```
+
 python pyallhillshadedwaterfall.py
 python pyallhillshadedwaterfall.py -i <filename.all>  
 python pyallhillshadedwaterfall.py -i *.all  

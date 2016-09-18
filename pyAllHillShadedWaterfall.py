@@ -40,14 +40,19 @@ def main():
     print ("processing with settings: ", args)
     for filename in glob(args.inputFile):
         xResolution, yResolution, beamCount, leftExtent, rightExtent, distanceTravelled, navigation = computeXYResolution(filename)
-        # print("XRes %.2f YRes %.2f beamCount %d leftExtent %.2f, rightExtent %.2f, swathWidth %.2f" % (xResolution, yResolution, beamCount, leftExtent, rightExtent, abs(leftExtent)+abs(rightExtent))) 
+        print("XRes %.2f YRes %.2f beamCount %d leftExtent %.2f, rightExtent %.2f, swathWidth %.2f" % (xResolution, yResolution, beamCount, leftExtent, rightExtent, abs(leftExtent)+abs(rightExtent))) 
         if (args.shadeScale==0): 
             args.shadeScale = 35 * math.pow(abs(leftExtent)+abs(rightExtent), -0.783)
             # args.shadeScale = 38 * math.pow(abs(leftExtent)+abs(rightExtent), -0.783)
         if beamCount == 0:
             print ("No data to process, skipping empty file")
             continue
-        createWaterfall(filename, colors, beamCount, float(args.shadeScale), float(args.zoom), args.annotate, xResolution, yResolution, args.rotate, args.gray, leftExtent, rightExtent, distanceTravelled, navigation)
+        zoom = float(args.zoom)
+        swathWidth = abs(leftExtent)+abs(rightExtent)
+        while (swathWidth < 300):
+            zoom *= 2
+            swathWidth *= zoom 
+        createWaterfall(filename, colors, beamCount, float(args.shadeScale), zoom, args.annotate, xResolution, yResolution, args.rotate, args.gray, leftExtent, rightExtent, distanceTravelled, navigation)
 
 def computeXYResolution(fileName):    
     '''compute the approximate across and alongtrack resolution so we can make a nearly isometric Image'''
