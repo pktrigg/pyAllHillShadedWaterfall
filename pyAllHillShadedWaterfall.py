@@ -24,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description='Read Kongsberg ALL file and create a hill shaded color waterfall image.')
     parser.add_argument('-i', dest='inputFile', action='store', help='-i <ALLfilename> : input ALL filename to image. It can also be a wildcard, e.g. *.all')
     parser.add_argument('-s', dest='shadeScale', default = 0, action='store', help='-s <value> : Override Automatic Shade scale factor with this value. A smaller number (0.1) provides less shade that a larger number (10) Range is anything.  [Default: 0]')
-    parser.add_argument('-z', dest='zoom', default = 1.0, action='store', help='-z <value> : Zoom scale factor. A larger number makes a larger image, and a smaller number (0.5) provides a smaller image, e.g -z 2 makes an image twice the native resolution. [Default: 1.0]')
+    parser.add_argument('-z', dest='zoom', default = 0, action='store', help='-z <value> : Zoom scale factor. A larger number makes a larger image, and a smaller number (0.5) provides a smaller image, e.g -z 2 makes an image twice the native resolution. [Default: 0]')
     parser.add_argument('-a', action='store_true', default=False, dest='annotate', help='-a : Annotate the image with timestamps.  [Default: True]')
     parser.add_argument('-r', action='store_true', default=False, dest='rotate', help='-r : Rotate the resulting waterfall so the image reads from left to right instead of bottom to top.  [Default is bottom to top]')
     parser.add_argument('-gray', action='store_true', default=False, dest='gray', help='-gray : Apply a gray scale depth palette to the image instead of a color depth.  [Default is False]')
@@ -49,10 +49,13 @@ def main():
             print ("No data to process, skipping empty file")
             continue
         zoom = float(args.zoom)
-        swathWidth = abs(leftExtent)+abs(rightExtent)
-        while (swathWidth < 300):
-            zoom *= 2
-            swathWidth *= zoom 
+        if (zoom ==0):
+            zoom = 1
+            # swathWidth = abs(leftExtent)+abs(rightExtent)
+            bc = beamCount
+            while (bc < 300):
+                zoom *= 2
+                bc *= zoom 
         print("Shade %.2f Zoom %.2f beamCount %d swathWidth %.2f" % (shadeScale, zoom, beamCount, abs(leftExtent)+abs(rightExtent))) 
         createWaterfall(filename, colors, beamCount, shadeScale, zoom, args.annotate, xResolution, yResolution, args.rotate, args.gray, leftExtent, rightExtent, distanceTravelled, navigation)
 
@@ -68,7 +71,7 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
     maxDepth = -minDepth
     outputResolution = beamCount * zoom
     isoStretchFactor = (yResolution/xResolution) * zoom
-    # print ("xRes %.2f yRes %.2f AcrossStretch %.2f" % (xResolution, yResolution, isoStretchFactor))
+    print ("xRes %.2f yRes %.2f isoStretchFactor %.2f outputResolution %.2f" % (xResolution, yResolution, isoStretchFactor, outputResolution))
     while r.moreData():
         TypeOfDatagram, datagram = r.readDatagram()
         if (TypeOfDatagram == 0):
@@ -176,19 +179,24 @@ def computeXYResolution(fileName):
     beamCount = 0
     distanceTravelled = 0.0
     navigation = []
+    selectedPositioningSystem = None
 
     while r.moreData():
         TypeOfDatagram, datagram = r.readDatagram()
         if (TypeOfDatagram == 'P'):
             datagram.read()
-            if prevLat == 0:
+            if (selectedPositioningSystem == None):
+                selectedPositioningSystem = datagram.Descriptor
+            if (selectedPositioningSystem == datagram.Descriptor):
+                if prevLat == 0:
+                    prevLat =  datagram.Latitude
+                    prevLong =  datagram.Longitude
+                range,bearing1, bearing2  = geodetic.calculateRangeBearingFromGeographicals(prevLong, prevLat, datagram.Longitude, datagram.Latitude)
+                # print (range,bearing1)
+                distanceTravelled += range
+                navigation.append([recCount, r.currentRecordDateTime(), datagram.Latitude, datagram.Longitude])
                 prevLat =  datagram.Latitude
                 prevLong =  datagram.Longitude
-            range,bearing1, bearing2  = geodetic.calculateRangeBearingFromGeographicals(prevLong, prevLat, datagram.Longitude, datagram.Latitude)
-            distanceTravelled += range
-            navigation.append([recCount, r.currentRecordDateTime(), datagram.Latitude, datagram.Longitude])
-            prevLat =  datagram.Latitude
-            prevLong =  datagram.Longitude
         if (TypeOfDatagram == 'X') or (TypeOfDatagram == 'D'):
             datagram.read()
             if datagram.NBeams > 1:
@@ -202,6 +210,7 @@ def computeXYResolution(fileName):
     if recCount == 0:
         return 0,0,0,0,0,[] 
     xResolution = np.average(acrossMeans)
+    # distanceTravelled = 235
     yResolution = distanceTravelled / recCount
     return xResolution, yResolution, beamCount, np.min(leftExtents), np.max(rightExtents), distanceTravelled, navigation
 

@@ -1,5 +1,5 @@
-![Example with color hill shading](https://github.com/pktrigg/pyAllHillShadedWaterfall/blob/master/sample.png "Color Shaded Waterfall direct from .all file.")
-![Example of gray scale hillshading](https://raw.githubusercontent.com/pktrigg/pyAllHillShadedWaterfall/sample2.png?raw=true "Gray Shaded Waterfall direct from .all file.")
+![Example with color hill shading](sample.png "Color Shaded Waterfall direct from .all file.")
+![Example of gray scale hillshading](sample2.png?raw=true "Gray Shaded Waterfall direct from .all file.")
 pyAllHillShadedWaterfall
 =====
 * created:       August 2016
@@ -12,6 +12,7 @@ pyAllHillShadedWaterfall
 
 Done
 ====
+* fixed calculationof distance travelled.  it now uses only the first positioning system.  this removes artificial stretch
 * if very few samples, auto zoom to improve image quality
 * we need to automate a decent shadescale factor.  Here are some numbers to estimate that
 * add color legend to bottom left of plot
