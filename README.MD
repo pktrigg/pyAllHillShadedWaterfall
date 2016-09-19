@@ -1,5 +1,5 @@
 ![Example with color hill shading](https://github.com/pktrigg/pyAllHillShadedWaterfall/blob/master/sample.png "Color Shaded Waterfall direct from .all file.")
-![Example of gray scale hillshading](./sample2.png?raw=true "Gray Shaded Waterfall direct from .all file.")
+![Example of gray scale hillshading](https://raw.githubusercontent.com/pktrigg/pyAllHillShadedWaterfall/sample2.png?raw=true "Gray Shaded Waterfall direct from .all file.")
 pyAllHillShadedWaterfall
 =====
 * created:       August 2016
