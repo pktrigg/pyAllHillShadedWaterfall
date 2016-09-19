@@ -74,7 +74,7 @@ python pyallhillshadedwaterfall.py -i *.all
 
 help
 ----
-
+```
 C:\development\python>python c:\development\python\pyAllHillShadedWaterfall\pyAllHillShadedWaterfall.py
 usage: pyAllHillShadedWaterfall.py [-h] [-i INPUTFILE] [-s SHADESCALE] [-z ZOOM] [-a] [-r] [-gray]
 
@@ -98,4 +98,4 @@ optional arguments:
   -gray          -gray : Apply a gray scale depth palette to the image instead
                  of a color depth. [Default is False]
 
-C:\development\python>
+```
