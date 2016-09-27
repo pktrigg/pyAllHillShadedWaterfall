@@ -39,6 +39,10 @@ def main():
 
     print ("processing with settings: ", args)
     for filename in glob(args.inputFile):
+        if not filename.endswith('.all'):
+            print ("File %s is not a .all file, skipping..." % (filename))
+            continue
+
         xResolution, yResolution, beamCount, leftExtent, rightExtent, distanceTravelled, navigation = computeXYResolution(filename)
         print("xRes %.2f yRes %.2f  leftExtent %.2f, rightExtent %.2f, distanceTravelled %.2f" % (xResolution, yResolution, leftExtent, rightExtent, distanceTravelled)) 
         shadeScale = float(args.shadeScale)
@@ -89,16 +93,20 @@ def createWaterfall(filename, colors, beamCount, shadeScale=1, zoom=1.0, annotat
             minDepth = min(minDepth, min(datagram.Depth))
             maxDepth = max(maxDepth, max(datagram.Depth))
 
+            waterfall.insert(0, np.asarray(datagram.Depth))            
+
             # we need to stretch the data to make it isometric, so lets use numpy interp routing to do that for Us
+            # datagram.AcrossTrackDistance.reverse()
             xp = np.array(datagram.AcrossTrackDistance) #the x distance for the beams of a ping.  we could possibly use the real values here instead todo
+            # datagram.Depth.reverse()
             fp = np.array(datagram.Depth) #the depth list as a numpy array
             # fp = geodetic.medfilt(fp,31)
             x = np.linspace(leftExtent, rightExtent, outputResolution) #the required samples needs to be about the same as the original number of samples, spread across the across track range
-            newDepths = np.interp(x, xp, fp, left=0.0, right=0.0)
+            # newDepths = np.interp(x, xp, fp, left=0.0, right=0.0)
 
             # run a median filter to remove crazy noise
             # newDepths = geodetic.medfilt(newDepths,7)
-            waterfall.insert(0, np.asarray(newDepths))            
+            # waterfall.insert(0, np.asarray(newDepths))            
 
         recCount += 1
         if r.currentRecordDateTime().timestamp() % 30 == 0:
@@ -200,11 +208,13 @@ def computeXYResolution(fileName):
         if (TypeOfDatagram == 'X') or (TypeOfDatagram == 'D'):
             datagram.read()
             if datagram.NBeams > 1:
-                acrossMeans = np.append(acrossMeans, np.average(np.diff(np.asarray(datagram.AcrossTrackDistance))))
-                leftExtents = np.append(leftExtents, datagram.AcrossTrackDistance[0])
-                rightExtents = np.append(rightExtents, datagram.AcrossTrackDistance[-1])
-                recCount = recCount + 1
-                beamCount = max(beamCount, len(datagram.Depth)) 
+                datagram.AcrossTrackDistance = [x for x in datagram.AcrossTrackDistance if x != 0.0]
+                if (len(datagram.AcrossTrackDistance) > 0):
+                    acrossMeans = np.append(acrossMeans, np.average(abs(np.diff(np.asarray(datagram.AcrossTrackDistance)))))
+                    leftExtents = np.append(leftExtents, min(datagram.AcrossTrackDistance))
+                    rightExtents = np.append(rightExtents, max(datagram.AcrossTrackDistance))
+                    recCount = recCount + 1
+                    beamCount = max(beamCount, len(datagram.Depth)) 
             
     r.close()
     if recCount == 0:
@@ -230,7 +240,8 @@ def writeLabel(img, y, label):
     f = ImageFont.truetype("arial.ttf",size=16)
     txt=Image.new('RGBA', (500,16))
     d = ImageDraw.Draw(txt)
-    d.text( (0, 0), label,  font=f, fill=(255,255,255))
+    d.text( (0, 0), label,  font=f, fill=(0,0,0))
+    # d.text( (0, 0), label,  font=f, fill=(255,255,255))
     d.line((0, 0, 20, 0), fill=(0,0,255))
     # w=txt.rotate(-90,  expand=1)
     offset = (x, y)
